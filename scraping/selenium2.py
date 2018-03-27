@@ -5,9 +5,15 @@
     Requests is failing to capture the innerHTML stuff that is being created by JS.
 """
 
-import time, sys, getpass
+import time
+import getpass
 from bs4 import BeautifulSoup as soup
 from selenium import webdriver
+
+# Username and password should be provided by user via input
+username = input("Ancestry username: ")
+# This should be masked
+password = getpass.getpass(prompt='Ancestry Password: ', stream=None)
 
 # Open login page
 browser = webdriver.Chrome()
@@ -17,10 +23,6 @@ browser.get(login_url)
 # Login
 username_element = browser.find_element_by_id("username")
 password_elememt = browser.find_element_by_id("password")
-# Username and password should be provided by user via input
-username = input("Ancestry username: ")
-# This should be masked
-password = getpass.getpass(prompt='Ancestry Password: ', stream=None)
 username_element.send_keys(username)
 password_elememt.send_keys(password)
 submitButton = browser.find_element_by_id("loginButton")
@@ -30,24 +32,28 @@ time.sleep(7)
 
 # grab the home page. Looking for that user ID string
 browser.get('https://www.ancestry.com/dna/insights')
+time.sleep(3)
+# We can get our guid now!
+guid = browser.current_url.split("/")[-1]
+
 # Assume it has some js that needs to run
 dna_html_page = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
 dna_soup = soup(dna_html_page, "html5lib")
-# Now it is a soup, but you are looking for that UUID in there.
-uuid = dna_soup.find("script", text="mainTestGuid")
-print(uuid)
-exit()
+
 
 # Move on to match page
-# user ID (B0004280-etc) should be determined programatically
+suffix = '?filterBy=ALL&sortBy=RELATIONSHIP&page='
+prefix = 'https://www.ancestry.com/dna/matches/'
+match_url = prefix + guid + suffix
 # More data can be collected by looping through and changing the "page=1" type stuff
-browser.get("https://www.ancestry.com/dna/matches/B0004280-63E9-45B2-9588-1E7AE812CC1D?filterBy=ALL&sortBy=RELATIONSHIP&page=1")
-time.sleep(10)
+for i in range(1, 11, 1):
+    browser.get(match_url + str(i))
+    time.sleep(7)
 
-# this line is trhe secret sauce that grabbs the FULL html AFTER the js runs
-html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
-with open("matches.txt", "w") as f:
-    f.writelines(html)
+    # this line is the secret sauce that grabs the FULL html AFTER the js runs
+    html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
+    with open("matches.txt", "w+") as f:
+        f.writelines(html)
 
 
 # Now extract the results of the JS inner HTML
@@ -62,5 +68,3 @@ with open("matches.txt", "w") as f:
 
 # for tag in soup.find_all('title'):
 #    print(tag.text)
-
-
