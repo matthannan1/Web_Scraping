@@ -13,8 +13,8 @@ session_requests = requests.session()
 # Login
 login_url = "https://www.ancestry.com/account/signin/"
 payload = {
-    "username": "matthannan1",
-    "password": "Calin2012"}
+    "username": "my_username",
+    "password": "my_password"}
 
 result = session_requests.get(login_url)
 print("Login result: ", result)
@@ -25,8 +25,7 @@ result = session_requests.post(
     headers=dict(referer=login_url)
 )
 print(result)
-match_url = "https://www.ancestry.com/dna/matches/B0004280\
-            -63E9-45B2-9588-1E7AE812CC1D/"
+match_url = "https://www.ancestry.com/dna/matches/my_guid/"
 result = session_requests.get(
     match_url,
     headers=dict(referer=match_url)
