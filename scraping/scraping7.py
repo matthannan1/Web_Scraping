@@ -12,11 +12,11 @@ session_requests = requests.session()
 
 # Get to Login Page
 login_url = "https://www.ancestry.com/account/signin"
-match_url = "https://www.ancestry.com/dna/matches/B0004280-63E9-45B2-9588-1E7AE812CC1D"
+match_url = "https://www.ancestry.com/dna/matches/my_guid"
 
 payload = {
-    "username": "matthannan1",
-    "password": "Calin2012"}
+    "username": "my_username",
+    "password": "my_password"}
 
 with requests.Session() as session:
     post = session.post(login_url, data=payload)
