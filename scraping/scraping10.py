@@ -13,8 +13,8 @@ session = HTMLSession()
 # Login setup
 login_url = "https://www.ancestry.com/account/signin/"
 payload = {
-    "username": "matthannan1",
-    "password": "Calin2012"}
+    "username": "my_username",
+    "password": "my_password"}
 
 r = session.get(login_url)
 print("Login setup: ", r)

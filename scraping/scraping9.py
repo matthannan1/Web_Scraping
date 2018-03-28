@@ -14,8 +14,8 @@ br.open("https://www.ancestry.com/account/signin/")
 
 # Fill in login form
 form = br.get_form()
-form['username'] = "matthannan1"
-form['password'] = "Calin2012"
+form['username'] = "my_username"
+form['password'] = "my_password"
 br.submit_form(form)
 print(br.url)
 
