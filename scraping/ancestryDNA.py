@@ -4,7 +4,7 @@ import os
 import csv
 import ancestryNodes as an
 from selenium import webdriver
-from bs4 import BeautifulSoup as bs
+# from bs4 import BeautifulSoup as bs
 
 
 def delete_old():
@@ -59,32 +59,46 @@ def collect_nodes(browser):
         time.sleep(7)
         # this line is the secret sauce that grabs the FULL html AFTER the js runs
         html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
-            with open("matches.txt", "a+") as f:
+        with open("matches.txt", "a+") as f:
             f.writelines(html)
 
 
 def get_details(browser):
     print("Gathering match details.")
-    # Get match URL from nodes.csv file
-    with open("nodes.csv", "r+") as n:
-        nodes = csv.reader(n)
-        next(nodes)
-        for node in nodes:
-            node_url = node[2].rstrip('\n')
-            print(node_url)
-            # Create new browser object in Selenium
-            # Maybe not, otherwise all that login stuff needs to run again.
-            # See about passing browser object
+    an.make_node_file("nodes.csv")
+    # Get match URL from protonodes.csv file
+    # This is PER MATCH, so it is a big loop
+    with open("protonodes.csv", "r+", newline='') as p:
+        protonodes = csv.reader(p)
+        next(protonodes)
+        for protonode in protonodes:
+            print(protonode[1])
+            if os.path.exists("details.txt"):
+                os.remove("details.txt")
+            node_url = protonode[2].rstrip('\n')
+            # Open match page
             browser.get(node_url)
             time.sleep(3)
+            # Secret sauce the dynamic HTML
             html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
             # Collect individual details
-            # temp write to file to exlore structure
-            with open("details.txt", "a+") as f:
+            with open("details.txt", "w") as f:
                 f.writelines(html)
-            # Append to nodes.csv
+            # Extract conf, cm, and segs
+            soup = an.make_soup("details.txt")
+            flavored_soup = an.get_flavor(soup)
+            # print(flavored_soup)
+            # Combine the original list and the flavor tuple to one list
+            flavored_node = protonode + list(flavored_soup)
+            # Write to nodes.csv
                 # still have node as list, so add items as list items
+                # not as easy as it sounds. Either two files or Pandas.
+            with open("nodes.csv", "a", newline='') as n:
+                nodes = csv.writer(n)
+                nodes.writerow(flavored_node)    
+                
             # Collect ICW and add to edges.csv
+
 
 # Set up
 delete_old()
@@ -93,16 +107,11 @@ browser = open_browser(uname, pwd)
 collect_nodes(browser)
 
 # Initial match gathering
-an.make_node_file()
+an.make_node_file("protonodes.csv")
 soup = an.make_soup("matches.txt")
-# tester = an.get_tester_name(soup)
-# print("AncestryDNA results for: ", tester)
 match_soup = an.make_matches(soup)
 an.make_nodes(match_soup)
-print("Initial nodes.csv file created")
+print("protonodes.csv file created")
 
 # Going back in for match details
 get_details(browser)
-soup = an.make_soup("details.txt")
-
-

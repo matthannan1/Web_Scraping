@@ -14,14 +14,14 @@ def make_matches(souptml):
     return match_soup
 
 
-def make_node_file():
-    with open("nodes.csv", "w", newline = '') as n:
+def make_node_file(filename):
+    with open(filename, "w", newline='') as n:
         node_file = csv.writer(n)
         node_file.writerow(['ID', 'Label', 'URL', 'Confidence', 'cMs', 'Segments', 'Notes'])
 
 
 def make_nodes(matches):
-    with open("nodes.csv", "w") as n:
+    with open("protonodes.csv", "a", newline='') as n:
         node_file = csv.writer(n)
         for match in matches:
             name = match.contents[0]
@@ -33,6 +33,9 @@ def make_nodes(matches):
 
 
 def get_flavor(souptml):
+    confidence = ""
+    cm = ""
+    segs = ""
     # return the Confidence, cMs and segements
     confident_soup = souptml.findAll('span', {"class": "matchPercent"})
     # print(confident_soup)
@@ -44,26 +47,3 @@ def get_flavor(souptml):
     # print(cm)
     # print(segs)
     return confidence, cm, segs
-
-    
-
-
-
-
-
-"""
-def add_node_details():
-    # if ids match, append to nodes.csv line in
-
-    # Confidence,cMs,Segments,Notes\n order
-    pass
- 
-
-def get_node_url():
-    with open("nodes.csv", "r+") as n:
-    nodes = n.readlines()
-    for node in nodes:
-        node_line = node.split(',')
-        node_url = node_line[2].rstrip('\n')
-        return node_url
-        """
