@@ -4,16 +4,39 @@ import os
 import csv
 import ancestryNodes as an
 from selenium import webdriver
-# from bs4 import BeautifulSoup as bs
+from selenium.webdriver.chrome.options import Options
+
+
+def make_html(browser):
+    # this line is the secret sauce that grabs the
+    # FULL html AFTER the js runs
+    return browser.find_element_by_tag_name('html').\
+            get_attribute('innerHTML')
 
 
 def delete_old():
     # Delete old files
     print("Deleting old files")
-    if os.path.exists("*.txt"):
-        os.remove("*.txt")
-    if os.path.exists("*.csv"):
-        os.remove("*.csv")
+    if os.path.exists("matches.txt"):
+        os.remove("matches.txt")
+    if os.path.exists("details.txt"):
+        os.remove("details.txt")
+    if os.path.exists("icw.txt"):
+        os.remove("icw.txt")
+    if os.path.exists("protonodes.csv"):
+        os.remove("protonodes.csv")
+    if os.path.exists("edges.csv"):
+        try:
+            os.remove("edges.csv")
+        except PermissionError:
+            print("edges.csv is open.")
+            input("Press any key after you close the file.")
+    if os.path.exists("nodes.csv"):
+        try:
+            os.remove("nodes.csv")
+        except PermissionError:
+            print("nodes.csv is open.")
+            input("Press any key after you close the file.")
 
 
 def get_credentials():
@@ -26,8 +49,12 @@ def get_credentials():
 
 def open_browser(username, password):
     print("Logging in")
+    # Setting some webdriver options
+    options = Options()
+    options.add_argument('--ignore-certificate-errors')
     # Open login page
-    browser = webdriver.Chrome()
+    browser = webdriver.Firefox()
+    #browser = webdriver.Chrome(chrome_options=chrome_options)
     login_url = 'https://www.ancestry.com/account/signin'
     browser.get(login_url)
     # Login
@@ -38,13 +65,13 @@ def open_browser(username, password):
     submitButton = browser.find_element_by_id("loginButton")
     submitButton.click()
     # wait for home page to load
-    time.sleep(7)
+    time.sleep(5)
     return browser
 
 
 def collect_nodes(browser):
     print("Collecting list of matches.")
-    # grab the home page. Looking for that user ID string
+    # grab the home page. Looking for the user ID string
     browser.get('https://www.ancestry.com/dna/insights')
     time.sleep(3)
     # We can get our guid now!
@@ -53,51 +80,60 @@ def collect_nodes(browser):
     prefix = 'https://www.ancestry.com/dna/matches/'
     suffix = '?filterBy=ALL&sortBy=RELATIONSHIP&page='
     match_url = prefix + guid + suffix
-    # More data can be collected by looping through and changing the "page=1" stuff
+    # More data can be collected by looping through and
+    # changing the "page=1" stuff
     for i in range(1, 2, 1):
         browser.get(match_url + str(i))
-        time.sleep(7)
-        # this line is the secret sauce that grabs the FULL html AFTER the js runs
-        html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
+        time.sleep(5)
+        # this line is the secret sauce that grabs the
+        # FULL html AFTER the js runs
+        html = make_html(browser)
         with open("matches.txt", "a+") as f:
             f.writelines(html)
 
 
-def get_details(browser):
+def get_match_details(browser):
     print("Gathering match details.")
-    an.make_node_file("nodes.csv")
+    an.make_data_file("nodes.csv")
+    an.make_data_file("edges.csv")
     # Get match URL from protonodes.csv file
     # This is PER MATCH, so it is a big loop
     with open("protonodes.csv", "r+", newline='') as p:
         protonodes = csv.reader(p)
         next(protonodes)
         for protonode in protonodes:
-            print(protonode[1])
             if os.path.exists("details.txt"):
                 os.remove("details.txt")
+            # Get match guid, will be used in edges.csv
+            match_guid = protonode[1]
+            # Get the match URL
             node_url = protonode[2].rstrip('\n')
             # Open match page
             browser.get(node_url)
             time.sleep(3)
             # Secret sauce the dynamic HTML
-            html = browser.find_element_by_tag_name('html').get_attribute('innerHTML')
+            html = make_html(browser)
             # Collect individual details
             with open("details.txt", "w") as f:
                 f.writelines(html)
             # Extract conf, cm, and segs
             soup = an.make_soup("details.txt")
             flavored_soup = an.get_flavor(soup)
-            # print(flavored_soup)
             # Combine the original list and the flavor tuple to one list
             flavored_node = protonode + list(flavored_soup)
             # Write to nodes.csv
-                # still have node as list, so add items as list items
-                # not as easy as it sounds. Either two files or Pandas.
             with open("nodes.csv", "a", newline='') as n:
                 nodes = csv.writer(n)
-                nodes.writerow(flavored_node)    
-                
+                nodes.writerow(flavored_node)
             # Collect ICW and add to edges.csv
+            browser.find_element_by_css_selector('.ancBtnM').click()
+            time.sleep(5)
+            # Secret sauce the dynamic HTML
+            html = make_html(browser)
+            with open("icw.txt", "a") as f:
+                f.writelines(html)
+            soup = an.make_soup("icw.txt")
+            an.get_icw_guid(match_guid, soup)
 
 
 # Set up
@@ -107,11 +143,11 @@ browser = open_browser(uname, pwd)
 collect_nodes(browser)
 
 # Initial match gathering
-an.make_node_file("protonodes.csv")
+an.make_data_file("protonodes.csv")
 soup = an.make_soup("matches.txt")
 match_soup = an.make_matches(soup)
 an.make_nodes(match_soup)
 print("protonodes.csv file created")
 
 # Going back in for match details
-get_details(browser)
+get_match_details(browser)
