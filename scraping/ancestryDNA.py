@@ -54,7 +54,7 @@ def open_browser(username, password):
     options.add_argument('--ignore-certificate-errors')
     # Open login page
     browser = webdriver.Firefox()
-    #browser = webdriver.Chrome(chrome_options=chrome_options)
+    # browser = webdriver.Chrome(chrome_options=chrome_options)
     login_url = 'https://www.ancestry.com/account/signin'
     browser.get(login_url)
     # Login
@@ -97,11 +97,14 @@ def get_match_details(browser):
     an.make_data_file("nodes.csv")
     an.make_data_file("edges.csv")
     # Get match URL from protonodes.csv file
+    # protonode[0]  protonode[1]    protonode[2]
+    # Label         ID              URL
     # This is PER MATCH, so it is a big loop
     with open("protonodes.csv", "r+", newline='') as p:
         protonodes = csv.reader(p)
         next(protonodes)
         for protonode in protonodes:
+            # Delete old details.txt file
             if os.path.exists("details.txt"):
                 os.remove("details.txt")
             # Get match guid, will be used in edges.csv
@@ -116,24 +119,42 @@ def get_match_details(browser):
             # Collect individual details
             with open("details.txt", "w") as f:
                 f.writelines(html)
-            # Extract conf, cm, and segs
+            # Extract Confidence, cMs, and # of Segments
             soup = an.make_soup("details.txt")
             flavored_soup = an.get_flavor(soup)
             # Combine the original list and the flavor tuple to one list
             flavored_node = protonode + list(flavored_soup)
-            # Write to nodes.csv
+            # Write flavored_node list to nodes.csv
+            # This gives us all of the basic match details in nodes.csv file
             with open("nodes.csv", "a", newline='') as n:
                 nodes = csv.writer(n)
                 nodes.writerow(flavored_node)
+            # Now it starts getting tricky.
             # Collect ICW and add to edges.csv
-            browser.find_element_by_css_selector('.ancBtnM').click()
-            time.sleep(5)
-            # Secret sauce the dynamic HTML
-            html = make_html(browser)
-            with open("icw.txt", "a") as f:
-                f.writelines(html)
-            soup = an.make_soup("icw.txt")
-            an.get_icw_guid(match_guid, soup)
+            # Prep URL for looping
+            base_node_url = node_url.rstrip('1')
+            # set the Bool
+            length = True
+            page = 1
+            while length:
+                base_node_url = node_url + str(page)
+                print(base_node_url)
+                # Open match page
+                browser.get(base_node_url)
+                time.sleep(3)
+                # Click "Shared Matches" button
+                browser.find_element_by_css_selector('.ancBtnM').click()
+                time.sleep(5)
+                # Secret sauce the dynamic HTML
+                html = make_html(browser)
+                # Write only, not append
+                # with open("icw.txt", "w") as f:
+                    # f.writelines(html)
+                # soup = an.make_soup("icw.txt")
+                soup = an.make_ram_soup(html)
+                # Get the ICW guids from each page of the MATCH
+                an.get_icw_guid(True, match_guid, soup)
+                page = page + 1
 
 
 # Set up

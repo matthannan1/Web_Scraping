@@ -1,4 +1,5 @@
 import csv
+import pprint
 from bs4 import BeautifulSoup as bs
 
 
@@ -17,6 +18,10 @@ def make_soup(filename):
     with open(filename, "r") as html:
         souptml = bs(html, 'html.parser')
     return souptml
+
+
+def make_ram_soup(html):
+    return bs(html, 'html.parser')
 
 
 def make_matches(souptml):
@@ -48,7 +53,7 @@ def get_flavor(souptml):
     try:
         confidence = str(confident_soup).split(': ')[1].split('\n')[0]
     except IndexError:
-        confidence = ""    
+        confidence = ""
     # Find cM and Segments
     cm_soup = souptml.findAll('div', {"data-classes": "sharedSegments"})
     cm = str(cm_soup).split('<p>')[1].split('</p>')[0].split(' ')[0]
@@ -62,21 +67,23 @@ def get_flavor(souptml):
     return confidence, cm, segs, note
 
 
-def get_icw_guid(match_guid, souptml):
+def get_icw_guid(length, match_guid, souptml):
+    # This is PER MATCH >>>AND<<< PER PAGE of Shared Matches!
+    # I am thinking that we need a while loop running,
+    # with False being tripped when len(icw_soup_list) < 50.
+    # While True, page2, page3, page4, etc
     try:
         icw_soup = souptml.findAll("a", {'class':
                                    "matchesImage matchesInCommonImage"})
     except IndexError:
-        return
+        return length is False
     icw_soup_list = list(icw_soup)
+    # print("ICW page length: ", len(icw_soup_list))
     for icw in icw_soup_list:
-        print("ICW: ", len(icw))
-        exit()
-        icw_data = []
-        icw_guid = ''
         icw_guid = str(icw).split('?filterBy')[0].split('match/')[1]
         icw_data = [match_guid, icw_guid]
         # Write to edges.csv
         with open("edges.csv", "a", newline='') as e:
             edges = csv.writer(e)
             edges.writerow(icw_data)
+    return length is True
