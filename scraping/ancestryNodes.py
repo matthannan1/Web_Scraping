@@ -1,5 +1,5 @@
 import csv
-import pprint
+# import pprint
 from bs4 import BeautifulSoup as bs
 
 
@@ -67,7 +67,7 @@ def get_flavor(souptml):
     return confidence, cm, segs, note
 
 
-def get_icw_guid(length, match_guid, souptml):
+def get_icw_guid(match_guid, souptml):
     # This is PER MATCH >>>AND<<< PER PAGE of Shared Matches!
     # I am thinking that we need a while loop running,
     # with False being tripped when len(icw_soup_list) < 50.
@@ -76,9 +76,9 @@ def get_icw_guid(length, match_guid, souptml):
         icw_soup = souptml.findAll("a", {'class':
                                    "matchesImage matchesInCommonImage"})
     except IndexError:
-        return length is False
+        return False
     icw_soup_list = list(icw_soup)
-    # print("ICW page length: ", len(icw_soup_list))
+    #print("ICW page length: ", len(icw_soup_list))
     for icw in icw_soup_list:
         icw_guid = str(icw).split('?filterBy')[0].split('match/')[1]
         icw_data = [match_guid, icw_guid]
@@ -86,4 +86,4 @@ def get_icw_guid(length, match_guid, souptml):
         with open("edges.csv", "a", newline='') as e:
             edges = csv.writer(e)
             edges.writerow(icw_data)
-    return length is True
+

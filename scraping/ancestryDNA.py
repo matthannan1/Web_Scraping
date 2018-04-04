@@ -131,14 +131,11 @@ def get_match_details(browser):
                 nodes.writerow(flavored_node)
             # Now it starts getting tricky.
             # Collect ICW and add to edges.csv
-            # Prep URL for looping
-            base_node_url = node_url.rstrip('1')
-            # set the Bool
-            length = True
+            print(Collecting Shared Matches.)
             page = 1
-            while length:
-                base_node_url = node_url + str(page)
-                print(base_node_url)
+            while True:
+                base_node_url = node_url[:-1] + str(page)
+                #print(page)
                 # Open match page
                 browser.get(base_node_url)
                 time.sleep(3)
@@ -147,14 +144,13 @@ def get_match_details(browser):
                 time.sleep(5)
                 # Secret sauce the dynamic HTML
                 html = make_html(browser)
-                # Write only, not append
-                # with open("icw.txt", "w") as f:
-                    # f.writelines(html)
-                # soup = an.make_soup("icw.txt")
                 soup = an.make_ram_soup(html)
                 # Get the ICW guids from each page of the MATCH
-                an.get_icw_guid(True, match_guid, soup)
-                page = page + 1
+                matches = an.get_icw_guid(match_guid, soup)
+                if matches is False:
+                    break
+                # Increment the page count number
+                page += 1
 
 
 # Set up
@@ -172,3 +168,5 @@ print("protonodes.csv file created")
 
 # Going back in for match details
 get_match_details(browser)
+browser.close()
+print("Complete.")
