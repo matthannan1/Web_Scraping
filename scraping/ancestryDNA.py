@@ -19,10 +19,6 @@ def delete_old():
     print("Deleting old files")
     if os.path.exists("matches.txt"):
         os.remove("matches.txt")
-    if os.path.exists("details.txt"):
-        os.remove("details.txt")
-    if os.path.exists("icw.txt"):
-        os.remove("icw.txt")
     if os.path.exists("protonodes.csv"):
         os.remove("protonodes.csv")
     if os.path.exists("edges.csv"):
@@ -44,7 +40,19 @@ def get_credentials():
     username = input("Ancestry username: ")
     # This should be masked
     password = getpass.getpass(prompt='Ancestry Password: ', stream=None)
-    return username, password
+    # Get max number of pages to scrape.
+    print("""
+There are 49 matches per page. The default sorting lists closer matches on the
+earlier pages. That means the more pages scanned, the more false positives will
+be brought in. Based on my results, things start getting really sketchy around
+page 25 to 30, so I have the default number of pages to capture as 30. This is
+1470 matches, which is more than I will ever be concerned about.
+""")
+    user_max = input("How many pages of matches would you like to capture? ")
+    if user_max == "":
+        user_max = 30
+    print(int(user_max)*49, "matches coming right up!")
+    return username, password, user_max
 
 
 def open_browser(username, password):
@@ -65,11 +73,11 @@ def open_browser(username, password):
     submitButton = browser.find_element_by_id("loginButton")
     submitButton.click()
     # wait for home page to load
-    time.sleep(5)
+    time.sleep(3)
     return browser
 
 
-def collect_nodes(browser):
+def collect_nodes(user_max, browser):
     print("Collecting list of matches.")
     # grab the home page. Looking for the user ID string
     browser.get('https://www.ancestry.com/dna/insights')
@@ -82,9 +90,11 @@ def collect_nodes(browser):
     match_url = prefix + guid + suffix
     # More data can be collected by looping through and
     # changing the "page=1" stuff
-    for i in range(1, 2, 1):
+    max = int(user_max) + 1
+    for i in range(1, max, 1):
+        print("Collecting match page", i)
         browser.get(match_url + str(i))
-        time.sleep(5)
+        time.sleep(3)
         # this line is the secret sauce that grabs the
         # FULL html AFTER the js runs
         html = make_html(browser)
@@ -104,9 +114,6 @@ def get_match_details(browser):
         protonodes = csv.reader(p)
         next(protonodes)
         for protonode in protonodes:
-            # Delete old details.txt file
-            if os.path.exists("details.txt"):
-                os.remove("details.txt")
             # Get match guid, will be used in edges.csv
             match_guid = protonode[1]
             # Get the match URL
@@ -116,11 +123,8 @@ def get_match_details(browser):
             time.sleep(3)
             # Secret sauce the dynamic HTML
             html = make_html(browser)
-            # Collect individual details
-            with open("details.txt", "w") as f:
-                f.writelines(html)
+            soup = an.make_ram_soup(html)
             # Extract Confidence, cMs, and # of Segments
-            soup = an.make_soup("details.txt")
             flavored_soup = an.get_flavor(soup)
             # Combine the original list and the flavor tuple to one list
             flavored_node = protonode + list(flavored_soup)
@@ -131,17 +135,21 @@ def get_match_details(browser):
                 nodes.writerow(flavored_node)
             # Now it starts getting tricky.
             # Collect ICW and add to edges.csv
-            print(Collecting Shared Matches.)
+            print("Collecting Shared Matches.")
             page = 1
             while True:
                 base_node_url = node_url[:-1] + str(page)
-                #print(page)
+                print("Page #: ", page)
                 # Open match page
+                # This seems redundant and a waste of time at scale.
+                # There has to be a better way to do this.
+                # Look at clicking the arrow to get to page 2 of matches
+                # if len(icw_soup_list) == 50 
                 browser.get(base_node_url)
-                time.sleep(3)
+                time.sleep(1)
                 # Click "Shared Matches" button
                 browser.find_element_by_css_selector('.ancBtnM').click()
-                time.sleep(5)
+                time.sleep(1)
                 # Secret sauce the dynamic HTML
                 html = make_html(browser)
                 soup = an.make_ram_soup(html)
@@ -149,22 +157,26 @@ def get_match_details(browser):
                 matches = an.get_icw_guid(match_guid, soup)
                 if matches is False:
                     break
+                # else click the "Next" arrow and send the soup to 
+                # get_icw_guid again. 
+                # This page count stuff could go away, too. 
                 # Increment the page count number
                 page += 1
 
 
 # Set up
 delete_old()
-uname, pwd = get_credentials()
+uname, pwd, max = get_credentials()
 browser = open_browser(uname, pwd)
-collect_nodes(browser)
+collect_nodes(max, browser)
 
 # Initial match gathering
 an.make_data_file("protonodes.csv")
 soup = an.make_soup("matches.txt")
 match_soup = an.make_matches(soup)
 an.make_nodes(match_soup)
-print("protonodes.csv file created")
+print("Basic Match capture completed.")
+# print("    protonodes.csv file created")
 
 # Going back in for match details
 get_match_details(browser)

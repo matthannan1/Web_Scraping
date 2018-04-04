@@ -21,6 +21,13 @@ def make_soup(filename):
 
 
 def make_ram_soup(html):
+    """selenium_object -> BeautifulSoup_object
+
+    Takes Selenium object held in memory and runs
+    it through BeautifulSoup, using the html.parser.
+    I may replace html.parser with something faster, 
+    if needed.
+    """
     return bs(html, 'html.parser')
 
 
@@ -78,12 +85,13 @@ def get_icw_guid(match_guid, souptml):
     except IndexError:
         return False
     icw_soup_list = list(icw_soup)
-    #print("ICW page length: ", len(icw_soup_list))
+    print("ICW on page: ", len(icw_soup_list))
     for icw in icw_soup_list:
-        icw_guid = str(icw).split('?filterBy')[0].split('match/')[1]
-        icw_data = [match_guid, icw_guid]
-        # Write to edges.csv
-        with open("edges.csv", "a", newline='') as e:
-            edges = csv.writer(e)
-            edges.writerow(icw_data)
-
+            icw_guid = str(icw).split('?filterBy')[0].split('match/')[1]
+            icw_data = [match_guid, icw_guid]
+            # Write to edges.csv
+            with open("edges.csv", "a", newline='') as e:
+                edges = csv.writer(e)
+                edges.writerow(icw_data)
+    if len(icw_soup_list) < 50:
+        return False
