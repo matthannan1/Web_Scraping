@@ -73,7 +73,7 @@ def open_browser(username, password):
     submitButton = browser.find_element_by_id("loginButton")
     submitButton.click()
     # wait for home page to load
-    # time.sleep(3)
+    time.sleep(1)
     return browser
 
 
@@ -81,7 +81,7 @@ def collect_nodes(user_max, browser):
     print("Collecting list of matches.")
     # grab the home page. Looking for the user ID string
     browser.get('https://www.ancestry.com/dna/insights')
-    # time.sleep(3)
+    time.sleep(1)
     # We can get our guid now!
     guid = browser.current_url.split("/")[-1]
     # Move on to match page
@@ -94,7 +94,7 @@ def collect_nodes(user_max, browser):
     for i in range(1, max, 1):
         print("Collecting match page", i)
         browser.get(match_url + str(i))
-        # time.sleep(3)
+        time.sleep(1)
         # this line is the secret sauce that grabs the
         # FULL html AFTER the js runs
         html = make_html(browser)
@@ -121,7 +121,7 @@ def get_match_details(browser):
             node_url = protonode[2].rstrip('\n')
             # Open match page
             browser.get(node_url)
-            # time.sleep(3)
+            time.sleep(1)
             # Secret sauce the dynamic HTML
             html = make_html(browser)
             soup = an.make_ram_soup(html)
@@ -140,7 +140,7 @@ def get_match_details(browser):
             #page = 1
             # Click the Shared Matches button
             browser.find_element_by_css_selector('.ancBtnM').click()
-            # time.sleep(1)
+            time.sleep(1)
             # print("Page #: ", page)
             while True:
                 # Secret sauce the dynamic HTML
@@ -154,7 +154,7 @@ def get_match_details(browser):
                 # get_icw_guid again.
                 else:
                     browser.find_element_by_css_selector('div.matchesPagination:nth-child(2) > div:nth-child(1) > a:nth-child(3)').click()
-                    # time.sleep(1)
+                    time.sleep(1)
                 # Increment the page count number
                 # page += 1
 

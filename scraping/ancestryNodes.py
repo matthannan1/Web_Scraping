@@ -63,8 +63,14 @@ def get_flavor(souptml):
         confidence = ""
     # Find cM and Segments
     cm_soup = souptml.findAll('div', {"data-classes": "sharedSegments"})
-    cm = str(cm_soup).split('<p>')[1].split('</p>')[0].split(' ')[0]
-    segs = str(cm_soup).split('<p>')[1].split('</p>')[0].split(' ')[4]
+    try:
+        cm = str(cm_soup).split('<p>')[1].split('</p>')[0].split(' ')[0]
+    except IndexError:
+        cm = ""
+    try:    
+        segs = str(cm_soup).split('<p>')[1].split('</p>')[0].split(' ')[4]
+    except IndexError:
+        segs = ""    
     # Find Notes
     notes_soup = souptml.findAll('span', {'data-ng-if': "!showShortNote"})
     try:
