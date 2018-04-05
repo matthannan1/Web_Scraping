@@ -73,7 +73,7 @@ def open_browser(username, password):
     submitButton = browser.find_element_by_id("loginButton")
     submitButton.click()
     # wait for home page to load
-    time.sleep(3)
+    # time.sleep(3)
     return browser
 
 
@@ -81,7 +81,7 @@ def collect_nodes(user_max, browser):
     print("Collecting list of matches.")
     # grab the home page. Looking for the user ID string
     browser.get('https://www.ancestry.com/dna/insights')
-    time.sleep(3)
+    # time.sleep(3)
     # We can get our guid now!
     guid = browser.current_url.split("/")[-1]
     # Move on to match page
@@ -94,7 +94,7 @@ def collect_nodes(user_max, browser):
     for i in range(1, max, 1):
         print("Collecting match page", i)
         browser.get(match_url + str(i))
-        time.sleep(3)
+        # time.sleep(3)
         # this line is the secret sauce that grabs the
         # FULL html AFTER the js runs
         html = make_html(browser)
@@ -103,7 +103,8 @@ def collect_nodes(user_max, browser):
 
 
 def get_match_details(browser):
-    print("Gathering match details.")
+    print("Gathering match details and Shared Matches (ICW).")
+    print("This is going to take a while, so go do some traditional genealogy!")
     an.make_data_file("nodes.csv")
     an.make_data_file("edges.csv")
     # Get match URL from protonodes.csv file
@@ -120,7 +121,7 @@ def get_match_details(browser):
             node_url = protonode[2].rstrip('\n')
             # Open match page
             browser.get(node_url)
-            time.sleep(3)
+            # time.sleep(3)
             # Secret sauce the dynamic HTML
             html = make_html(browser)
             soup = an.make_ram_soup(html)
@@ -135,21 +136,13 @@ def get_match_details(browser):
                 nodes.writerow(flavored_node)
             # Now it starts getting tricky.
             # Collect ICW and add to edges.csv
-            print("Collecting Shared Matches.")
-            page = 1
+            print("Collecting Shared Matches (ICW).")
+            #page = 1
+            # Click the Shared Matches button
+            browser.find_element_by_css_selector('.ancBtnM').click()
+            # time.sleep(1)
+            # print("Page #: ", page)
             while True:
-                base_node_url = node_url[:-1] + str(page)
-                print("Page #: ", page)
-                # Open match page
-                # This seems redundant and a waste of time at scale.
-                # There has to be a better way to do this.
-                # Look at clicking the arrow to get to page 2 of matches
-                # if len(icw_soup_list) == 50 
-                browser.get(base_node_url)
-                time.sleep(1)
-                # Click "Shared Matches" button
-                browser.find_element_by_css_selector('.ancBtnM').click()
-                time.sleep(1)
                 # Secret sauce the dynamic HTML
                 html = make_html(browser)
                 soup = an.make_ram_soup(html)
@@ -157,11 +150,13 @@ def get_match_details(browser):
                 matches = an.get_icw_guid(match_guid, soup)
                 if matches is False:
                     break
-                # else click the "Next" arrow and send the soup to 
-                # get_icw_guid again. 
-                # This page count stuff could go away, too. 
+                # else click the "Next" arrow and send the soup to
+                # get_icw_guid again.
+                else:
+                    browser.find_element_by_css_selector('div.matchesPagination:nth-child(2) > div:nth-child(1) > a:nth-child(3)').click()
+                    # time.sleep(1)
                 # Increment the page count number
-                page += 1
+                # page += 1
 
 
 # Set up

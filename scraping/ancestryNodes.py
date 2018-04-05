@@ -25,7 +25,7 @@ def make_ram_soup(html):
 
     Takes Selenium object held in memory and runs
     it through BeautifulSoup, using the html.parser.
-    I may replace html.parser with something faster, 
+    I may replace html.parser with something faster,
     if needed.
     """
     return bs(html, 'html.parser')
@@ -76,16 +76,13 @@ def get_flavor(souptml):
 
 def get_icw_guid(match_guid, souptml):
     # This is PER MATCH >>>AND<<< PER PAGE of Shared Matches!
-    # I am thinking that we need a while loop running,
-    # with False being tripped when len(icw_soup_list) < 50.
-    # While True, page2, page3, page4, etc
     try:
         icw_soup = souptml.findAll("a", {'class':
                                    "matchesImage matchesInCommonImage"})
     except IndexError:
         return False
     icw_soup_list = list(icw_soup)
-    print("ICW on page: ", len(icw_soup_list))
+    # print("ICW on page: ", len(icw_soup_list))
     for icw in icw_soup_list:
             icw_guid = str(icw).split('?filterBy')[0].split('match/')[1]
             icw_data = [match_guid, icw_guid]
