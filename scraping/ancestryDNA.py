@@ -113,7 +113,9 @@ def get_match_details(browser):
     # This is PER MATCH, so it is a big loop
     with open("protonodes.csv", "r+", newline='') as p:
         protonodes = csv.reader(p)
+        total_matches = len(protonodes) - 1
         next(protonodes)
+        match = 1
         for protonode in protonodes:
             # Get match guid, will be used in edges.csv
             match_guid = protonode[1]
@@ -136,7 +138,7 @@ def get_match_details(browser):
                 nodes.writerow(flavored_node)
             # Now it starts getting tricky.
             # Collect ICW and add to edges.csv
-            print("Collecting Shared Matches (ICW).")
+            print("Collecting Shared Matches (ICW) from match", match, "of", total_matches +".")
             #page = 1
             # Click the Shared Matches button
             browser.find_element_by_css_selector('.ancBtnM').click()
@@ -157,6 +159,7 @@ def get_match_details(browser):
                     time.sleep(1)
                 # Increment the page count number
                 # page += 1
+            match += 1
 
 
 # Set up
