@@ -41,30 +41,19 @@ page 25 to 30, so I have the default number of pages to capture as 30. This is
 
 # Create session object
 session_requests = requests.session()
-
 # Get to Login Page
 login_url = "https://www.ancestry.com/account/signin"
-get_guid_url = "https://www.ancestry.com/dna/insights"
-# get_guid_url = "https://dnahomeaws.ancestry.com/dna/secure/tests"
+# get_guid_url = "https://www.ancestry.com/dna/insights"
+get_guid_url = "https://dnahomeaws.ancestry.com/dna/secure/tests"
 
 username, password, max_pages = get_credentials()
 payload = {
     "username": username,
     "password": password}
 
-with requests.Session() as session:
+with session_requests as session:
     post = session.post(login_url, data=payload)
-    print(post.status_code)
-    # r = requests.get('http://techtv.m...)
-    guid_url = post.get(get_guid_url)
+    guid_url = session.get(get_guid_url)
     time.sleep(5)
-    print(type(guid_url.text))
-    # print(r.url)
-    print(guid_url.url)
-    # download the raw JSON
-    raw = post.get(get_guid_url).text
-    # parse it into a dict
-    # data = json.loads(raw)
-    # pretty-print some cool data about the 0th listing
-    # print(type(data)) # dict!
-    # pprint(data)
+    pprint(guid_url)
+
