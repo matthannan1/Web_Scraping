@@ -18,6 +18,19 @@ import time
 from pprint import pprint
 
 
+def get_guids(raw_data):
+    tests = {}
+    for i in range(len(raw_data['data']['completeTests'])):
+        guid = (raw_data['data']['completeTests'][i]['guid'])
+        # print("Test {}: {} {}".format(num, id['testSubject']['displayName'], id['guid']))
+        tester = (raw_data['data']['completeTests'][i]['testSubject']['givenNames']
+                  + " " + raw_data['data']['completeTests'][i]['testSubject']['surname'])
+        tests[i+1] = tester, guid
+    # for k, v in tests.items():
+        # print("Test", str(k) + ":", v[0], v[1])
+    return tests
+
+
 def get_credentials():
     # Username and password should be provided by user via input
     username = input("Ancestry username: ")
@@ -44,7 +57,10 @@ session_requests = requests.session()
 # Get to Login Page
 login_url = "https://www.ancestry.com/account/signin"
 # get_guid_url = "https://www.ancestry.com/dna/insights"
-get_guid_url = "https://dnahomeaws.ancestry.com/dna/secure/tests"
+get_guids_url = "https://dnahomeaws.ancestry.com/dna/secure/tests/"
+suffix1 = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page=1"
+suffix2 = "/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page=1&matchTestGuid="
+
 
 username, password, max_pages = get_credentials()
 payload = {
@@ -53,7 +69,20 @@ payload = {
 
 with session_requests as session:
     post = session.post(login_url, data=payload)
-    guid_url = session.get(get_guid_url)
-    time.sleep(5)
-    pprint(guid_url)
+    # Get the raw JSON for the tests
+    raw = session.get(get_guids_url).text
+    # parse it into a dict
+    data = json.loads(raw)
+    test_guids = get_guids(data) # get the list of tests available
+    print()
+    for k, v in test_guids.items(): # Print them out...work on formatting
+        print("Test", str(k) + ":", v[0], v[1])
+    print()
+    test_selection = int(input("Select the test that you want to gather matches for: "))
+    guid = test_guids[test_selection][1]
+    # print(guid)
+    # Start to gather match data using number of pages variable
+    test_url = get_guids_url + guid + suffix1
+    matches = session.get(test_url).text
+    print(matches)
 
