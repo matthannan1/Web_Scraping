@@ -15,7 +15,29 @@ import requests
 import json
 import getpass
 import time
+import os
 from pprint import pprint
+
+
+def delete_old():
+    # Delete old files
+    print("Deleting old files")
+    if os.path.exists("matches.txt"):
+        os.remove("matches.txt")
+    if os.path.exists("protonodes.csv"):
+        os.remove("protonodes.csv")
+    if os.path.exists("edges.csv"):
+        try:
+            os.remove("edges.csv")
+        except PermissionError:
+            print("edges.csv is open.")
+            input("Press any key after you close the file.")
+    if os.path.exists("nodes.csv"):
+        try:
+            os.remove("nodes.csv")
+        except PermissionError:
+            print("nodes.csv is open.")
+            input("Press any key after you close the file.")
 
 
 def get_guids(raw_data):
@@ -52,6 +74,28 @@ page 25 to 30, so I have the default number of pages to capture as 30. This is
     return username, password, user_max
 
 
+def harvest_matches(matches):
+    data = json.loads(matches)
+    c = 0
+    print("Groups:", len(data['matchGroups']))
+    for i in range(len(data['matchGroups'])):
+        for m in range(len(data['matchGroups'][i]['matches'])):
+            print(data['matchGroups'][i]['matches'][m]['testGuid'])
+            c +=1
+    print("Matches:", c)
+
+
+def make_data_file(filename):
+    if filename == "nodes.csv" or filename == "protonodes.csv":
+        header = ['Label', 'ID', 'URL', 'Confidence',
+                  'cMs', 'Segments', 'Notes']
+    if filename == "edges.csv":
+        header = ['Source', 'Target']
+    with open(filename, "w", newline='') as f:
+        data_file = csv.writer(f)
+        data_file.writerow(header)
+
+
 # Create session object
 session_requests = requests.session()
 # Get to Login Page
@@ -61,12 +105,19 @@ get_guids_url = "https://dnahomeaws.ancestry.com/dna/secure/tests/"
 suffix1 = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page=1"
 suffix2 = "/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page=1&matchTestGuid="
 
+# Delete old files
+delete_old()
+# Create new files
+make_data_file("nodes.csv")
+make_data_file("edges.csv")
 
+# Login
 username, password, max_pages = get_credentials()
 payload = {
     "username": username,
     "password": password}
 
+# Start Session
 with session_requests as session:
     post = session.post(login_url, data=payload)
     # Get the raw JSON for the tests
@@ -78,11 +129,16 @@ with session_requests as session:
     for k, v in test_guids.items(): # Print them out...work on formatting
         print("Test", str(k) + ":", v[0], v[1])
     print()
-    test_selection = int(input("Select the test that you want to gather matches for: "))
+    test_selection = int(input("Select the Test # that you want to gather matches for: "))
     guid = test_guids[test_selection][1]
     # print(guid)
     # Start to gather match data using number of pages variable
+    # suffix1 ends in the "page=1"
+    # obviously, this needs to be fixed to capture more than the
+    # first page of matches.
+    # look at ancestryDNA.py collect_nodes() function.
     test_url = get_guids_url + guid + suffix1
     matches = session.get(test_url).text
-    print(matches)
+    harvest_matches(matches)
+    # print(matches)
 
