@@ -16,6 +16,7 @@ import json
 import getpass
 import time
 import os
+import csv
 from pprint import pprint
 
 
@@ -40,6 +41,17 @@ def delete_old():
             input("Press any key after you close the file.")
 
 
+def make_data_file(filename):
+    if filename == "nodes.csv" or filename == "protonodes.csv":
+        header = ['Label', 'ID', 'Starred', 'Confidence',
+                  'cMs', 'Segments', 'Notes']
+    if filename == "edges.csv":
+        header = ['Source', 'Target']
+    with open(filename, "w", newline='') as f:
+        data_file = csv.writer(f)
+        data_file.writerow(header)
+
+
 def get_guids(raw_data):
     tests = {}
     for i in range(len(raw_data['data']['completeTests'])):
@@ -60,40 +72,42 @@ def get_credentials():
     password = getpass.getpass(prompt='Ancestry Password: ', stream=None)
     # Get max number of pages to scrape.
     print("""
-There are 48 matches per page. The default sorting lists closer matches on the
-earlier pages. That means the more pages scanned, the more false positives will
-be brought in. Based on my results, things start getting really sketchy around
-page 25 to 30, so I have the default number of pages to capture as 30. This is
-1440 matches, which is more than I will ever be concerned about.
+There are about 50 matches per page. The default sorting lists closer matches
+on the earlier pages. That means the more pages scanned, the more false positives
+will be brought in. Based on my results, things start getting really sketchy
+around page 25 to 30, so I have the default number of pages to capture as 30.
+This is 1500 matches, which is more than I will ever be concerned about.
 """)
     user_max = input("How many pages of matches would you like to capture? ")
-    user_max = int(user_max)
     if user_max == "":
-        user_max = 30
-    print(user_max*48, "matches coming right up!")
+        user_max = "30"
+    user_max = int(user_max)    
+    print(user_max*50, "matches coming right up!")
     return username, password, user_max
 
 
 def harvest_matches(matches):
     data = json.loads(matches)
-    c = 0
-    print("Groups:", len(data['matchGroups']))
+    # c = 0
+    #print("Groups:", len(data['matchGroups']))
     for i in range(len(data['matchGroups'])):
         for m in range(len(data['matchGroups'][i]['matches'])):
-            print(data['matchGroups'][i]['matches'][m]['testGuid'])
-            c +=1
-    print("Matches:", c)
-
-
-def make_data_file(filename):
-    if filename == "nodes.csv" or filename == "protonodes.csv":
-        header = ['Label', 'ID', 'URL', 'Confidence',
-                  'cMs', 'Segments', 'Notes']
-    if filename == "edges.csv":
-        header = ['Source', 'Target']
-    with open(filename, "w", newline='') as f:
-        data_file = csv.writer(f)
-        data_file.writerow(header)
+            # print(data['matchGroups'][i]['matches'][m]['testGuid'])
+            # ['Label', 'ID', 'Starred', 'Confidence', 'cMs', 'Segments', 'Notes']
+            match_name = data['matchGroups'][i]['matches'][m]['matchTestDisplayName']
+            match_guid = data['matchGroups'][i]['matches'][m]['testGuid']
+            match_starred = data['matchGroups'][i]['matches'][m]['starred']
+            match_confidence = data['matchGroups'][i]['matches'][m]['confidence']
+            match_cms = data['matchGroups'][i]['matches'][m]['sharedCentimorgans']
+            match_segments = data['matchGroups'][i]['matches'][m]['sharedSegments']
+            match_notes = data['matchGroups'][i]['matches'][m]['note']
+            match_starred = data['matchGroups'][i]['matches'][m]['starred']
+            # c += 1
+            match_details = (match_name, match_guid, match_starred, match_confidence, match_cms, match_segments, match_notes)
+            with open("nodes.csv", "a", newline='') as n:
+                nodes = csv.writer(n)
+                nodes.writerow(match_details)
+    # print("Matches:", c)
 
 
 # Create session object
@@ -102,7 +116,7 @@ session_requests = requests.session()
 login_url = "https://www.ancestry.com/account/signin"
 # get_guid_url = "https://www.ancestry.com/dna/insights"
 get_guids_url = "https://dnahomeaws.ancestry.com/dna/secure/tests/"
-suffix1 = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page=1"
+suffix1 = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page="  # note the no page number
 suffix2 = "/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page=1&matchTestGuid="
 
 # Delete old files
@@ -124,9 +138,9 @@ with session_requests as session:
     raw = session.get(get_guids_url).text
     # parse it into a dict
     data = json.loads(raw)
-    test_guids = get_guids(data) # get the list of tests available
+    test_guids = get_guids(data)  # get the list of tests available
     print()
-    for k, v in test_guids.items(): # Print them out...work on formatting
+    for k, v in test_guids.items():  # Print them out...work on formatting
         print("Test", str(k) + ":", v[0], v[1])
     print()
     test_selection = int(input("Select the Test # that you want to gather matches for: "))
@@ -137,8 +151,10 @@ with session_requests as session:
     # obviously, this needs to be fixed to capture more than the
     # first page of matches.
     # look at ancestryDNA.py collect_nodes() function.
-    test_url = get_guids_url + guid + suffix1
-    matches = session.get(test_url).text
-    harvest_matches(matches)
+    print("Gathering match details. Please wait.")
+    for page_number in range(1, max_pages+1):
+        test_url = get_guids_url + guid + suffix1 + str(page_number)
+        matches = session.get(test_url).text
+        harvest_matches(matches)
+        time.sleep(1)
     # print(matches)
-
