@@ -17,16 +17,21 @@ import getpass
 import time
 import os
 import csv
-from pprint import pprint
+from gooey import Gooey
+# from pprint import pprint
+
+
+# URL data
+login_url = "https://www.ancestry.com/account/signin"
+prefix_url = "https://dnahomeaws.ancestry.com/dna/secure/tests/"
+matches_url_suffix = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page="
+shared_matches_url_suffix1 = "/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page="
+shared_matches_url_suffix2 = "&matchTestGuid="
 
 
 def delete_old():
     # Delete old files
     print("Deleting old files")
-    if os.path.exists("matches.txt"):
-        os.remove("matches.txt")
-    if os.path.exists("protonodes.csv"):
-        os.remove("protonodes.csv")
     if os.path.exists("edges.csv"):
         try:
             os.remove("edges.csv")
@@ -42,7 +47,7 @@ def delete_old():
 
 
 def make_data_file(filename):
-    if filename == "nodes.csv" or filename == "protonodes.csv":
+    if filename == "nodes.csv":
         header = ['Label', 'ID', 'Starred', 'Confidence',
                   'cMs', 'Segments', 'Notes']
     if filename == "edges.csv":
@@ -52,16 +57,22 @@ def make_data_file(filename):
         data_file.writerow(header)
 
 
+def get_json(session, url):
+    # Get the raw JSON for the tests
+    raw = session.get(url).text
+    # parse it into a dict
+    data = json.loads(raw)
+    return data
+
+
 def get_guids(raw_data):
     tests = {}
     for i in range(len(raw_data['data']['completeTests'])):
         guid = (raw_data['data']['completeTests'][i]['guid'])
-        # print("Test {}: {} {}".format(num, id['testSubject']['displayName'], id['guid']))
-        tester = (raw_data['data']['completeTests'][i]['testSubject']['givenNames']
-                  + " " + raw_data['data']['completeTests'][i]['testSubject']['surname'])
+        tester = (raw_data['data']['completeTests'][i]['testSubject']
+                  ['givenNames'] + " " + raw_data['data']['completeTests']
+                  [i]['testSubject']['surname'])
         tests[i+1] = tester, guid
-    # for k, v in tests.items():
-        # print("Test", str(k) + ":", v[0], v[1])
     return tests
 
 
@@ -81,19 +92,14 @@ This is 1500 matches, which is more than I will ever be concerned about.
     user_max = input("How many pages of matches would you like to capture? ")
     if user_max == "":
         user_max = "30"
-    user_max = int(user_max)    
+    user_max = int(user_max)
     print(user_max*50, "matches coming right up!")
     return username, password, user_max
 
 
-def harvest_matches(matches):
-    data = json.loads(matches)
-    # c = 0
-    #print("Groups:", len(data['matchGroups']))
+def harvest_matches(session, data, guid):
     for i in range(len(data['matchGroups'])):
         for m in range(len(data['matchGroups'][i]['matches'])):
-            # print(data['matchGroups'][i]['matches'][m]['testGuid'])
-            # ['Label', 'ID', 'Starred', 'Confidence', 'cMs', 'Segments', 'Notes']
             match_name = data['matchGroups'][i]['matches'][m]['matchTestDisplayName']
             match_guid = data['matchGroups'][i]['matches'][m]['testGuid']
             match_starred = data['matchGroups'][i]['matches'][m]['starred']
@@ -102,59 +108,77 @@ def harvest_matches(matches):
             match_segments = data['matchGroups'][i]['matches'][m]['sharedSegments']
             match_notes = data['matchGroups'][i]['matches'][m]['note']
             match_starred = data['matchGroups'][i]['matches'][m]['starred']
-            # c += 1
-            match_details = (match_name, match_guid, match_starred, match_confidence, match_cms, match_segments, match_notes)
+            match_details = (match_name, match_guid, match_starred,
+                             match_confidence, match_cms, match_segments,
+                             match_notes)
             with open("nodes.csv", "a", newline='') as n:
                 nodes = csv.writer(n)
                 nodes.writerow(match_details)
-    # print("Matches:", c)
+            # Get Shared Matches
+            page = 1
+            while page < 3:
+                sm_url = prefix_url + guid + shared_matches_url_suffix1 + str(page)
+                         + shared_matches_url_suffix2 + match_guid
+                second_page = harvest_shared_matches(session, sm_url,
+                                                     match_guid)
+                if second_page and page < 3:
+                    page = page + 1
+                else:
+                    page = 3
 
 
-# Create session object
-session_requests = requests.session()
-# Get to Login Page
-login_url = "https://www.ancestry.com/account/signin"
-# get_guid_url = "https://www.ancestry.com/dna/insights"
-get_guids_url = "https://dnahomeaws.ancestry.com/dna/secure/tests/"
-suffix1 = "/matches?filterBy=ALL&sortBy=RELATIONSHIP&page="  # note the no page number
-suffix2 = "/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page=1&matchTestGuid="
+def harvest_shared_matches(session, sm_url, match_guid):
+    sm_data = get_json(session, sm_url)
+    for mg in range(len(sm_data['matchGroups'])):
+        for sm in range(len(sm_data['matchGroups'][mg]['matches'])):
+            sm_guid = sm_data['matchGroups'][mg]['matches'][sm]['testGuid']
+            icw = (match_guid, sm_guid)
+            with open("edges.csv", "a", newline='') as e:
+                edges = csv.writer(e)
+                edges.writerow(icw)
+    if sm_data['pageCount'] == 1:
+        return False
+    else:
+        return True
 
-# Delete old files
-delete_old()
-# Create new files
-make_data_file("nodes.csv")
-make_data_file("edges.csv")
 
-# Login
-username, password, max_pages = get_credentials()
-payload = {
-    "username": username,
-    "password": password}
+def main():
+    # Delete old files
+    delete_old()
 
-# Start Session
-with session_requests as session:
-    post = session.post(login_url, data=payload)
-    # Get the raw JSON for the tests
-    raw = session.get(get_guids_url).text
-    # parse it into a dict
-    data = json.loads(raw)
-    test_guids = get_guids(data)  # get the list of tests available
-    print()
-    for k, v in test_guids.items():  # Print them out...work on formatting
-        print("Test", str(k) + ":", v[0], v[1])
-    print()
-    test_selection = int(input("Select the Test # that you want to gather matches for: "))
-    guid = test_guids[test_selection][1]
-    # print(guid)
-    # Start to gather match data using number of pages variable
-    # suffix1 ends in the "page=1"
-    # obviously, this needs to be fixed to capture more than the
-    # first page of matches.
-    # look at ancestryDNA.py collect_nodes() function.
-    print("Gathering match details. Please wait.")
-    for page_number in range(1, max_pages+1):
-        test_url = get_guids_url + guid + suffix1 + str(page_number)
-        matches = session.get(test_url).text
-        harvest_matches(matches)
-        time.sleep(1)
-    # print(matches)
+    # Create new files
+    make_data_file("nodes.csv")
+    make_data_file("edges.csv")
+
+    # Login
+    username, password, max_pages = get_credentials()
+    payload = {"username": username,
+               "password": password}
+
+    # Create session object
+    session_requests = requests.session()
+
+    # Start Session
+    with session_requests as session:
+        session.post(login_url, data=payload)
+        data = get_json(session, prefix_url)
+
+        # Get the list of tests available
+        test_guids = get_guids(data)
+        print()
+        for k, v in test_guids.items():  # Print them out...work on formatting
+            print("Test", str(k) + ":", v[0], v[1])
+        print()
+        test_selection = int(input("Select the Test # that you want to gather matches for: "))
+        guid = test_guids[test_selection][1]
+
+        # Start to gather match data using number of pages variable
+        print("Gathering match details. Please wait.")
+        for page_number in range(1, max_pages+1):
+            test_url = prefix_url + guid + matches_url_suffix + str(page_number)
+            matches = get_json(session, test_url)
+            harvest_matches(session, matches, guid)
+            time.sleep(1)
+
+
+main()
