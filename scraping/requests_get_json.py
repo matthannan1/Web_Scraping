@@ -1,4 +1,8 @@
 """
+18 Apr 2018
+by Matt Hannan
+matthannan1@gmail.com
+
 Based on this web site:
 https://ianlondon.github.io/blog/web-scraping-discovering-hidden-apis/
 
@@ -7,7 +11,9 @@ https://dnahomeaws.ancestry.com/dna/secure/tests/B0004280-63E9-45B2-9588-1E7AE81
 and Shared Match data here:
 https://dnahomeaws.ancestry.com/dna/secure/tests/B0004280-63E9-45B2-9588-1E7AE812CC1D/matchesInCommon?filterBy=ALL&sortBy=RELATIONSHIP&page=1&matchTestGuid=861ABA15-2DEE-495B-A843-42166C59F80C
 
-First trick will be logging in without a browser.
+Takes username, password, and the number of pages of matches, returns list of
+linked tests, then gathers match details and Shared Matches (ICW). Output is
+in two csv files, ready for import into Gephi.
 
 """
 
@@ -17,8 +23,6 @@ import getpass
 import time
 import os
 import csv
-from gooey import Gooey
-# from pprint import pprint
 
 
 # URL data
@@ -84,10 +88,11 @@ def get_credentials():
     # Get max number of pages to scrape.
     print("""
 There are about 50 matches per page. The default sorting lists closer matches
-on the earlier pages. That means the more pages scanned, the more false positives
-will be brought in. Based on my results, things start getting really sketchy
-around page 25 to 30, so I have the default number of pages to capture as 30.
-This is 1500 matches, which is more than I will ever be concerned about.
+on the earlier pages. That means the more pages scanned, the more false
+positives will be brought in. Based on my results, things start getting
+really sketchy around page 25 to 30, so I have the default number of pages to
+capture as 30. This is 1500 matches, which is more than I will ever be
+concerned about.
 """)
     user_max = input("How many pages of matches would you like to capture? ")
     if user_max == "":
@@ -117,8 +122,9 @@ def harvest_matches(session, data, guid):
             # Get Shared Matches
             page = 1
             while page < 3:
-                sm_url = prefix_url + guid + shared_matches_url_suffix1 + str(page)
-                         + shared_matches_url_suffix2 + match_guid
+                sm_url = str(prefix_url + guid + shared_matches_url_suffix1
+                             + str(page) + shared_matches_url_suffix2
+                             + match_guid)
                 second_page = harvest_shared_matches(session, sm_url,
                                                      match_guid)
                 if second_page and page < 3:
@@ -169,13 +175,15 @@ def main():
         for k, v in test_guids.items():  # Print them out...work on formatting
             print("Test", str(k) + ":", v[0], v[1])
         print()
-        test_selection = int(input("Select the Test # that you want to gather matches for: "))
+        test_selection = int(input("Select the Test # that you want to gather \
+matches for: "))
         guid = test_guids[test_selection][1]
 
         # Start to gather match data using number of pages variable
         print("Gathering match details. Please wait.")
         for page_number in range(1, max_pages+1):
-            test_url = prefix_url + guid + matches_url_suffix + str(page_number)
+            test_url = str(prefix_url + guid + matches_url_suffix
+                           + str(page_number))
             matches = get_json(session, test_url)
             harvest_matches(session, matches, guid)
             time.sleep(1)
